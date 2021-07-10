@@ -1,0 +1,16 @@
+<launch>
+<arg name="scan_id" value="4acaebcc-6c10-2a2a-858b-29c7e4fb410d"/>
+<!-- <arg name="scan_id" value="754e884c-ea24-2175-8b34-cead19d4198d"/> -->
+<!-- <arg name="scan_id" value="8eabc401-5af7-2f32-85fe-77e22d8d97f8"/> -->
+<arg name="root_dir" value="/home/lch/catkin_ws2/src/dataset_tool/3RScan/data/3RScan"/>
+
+<node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find object_fusion)/config/3rscan.rviz" />
+
+<node name="rosbag" pkg="rosbag" type="play" respawn="false" args="--pause $(arg root_dir)/$(arg scan_id)/data.bag"/>
+
+<node name="read" pkg="point_cloud_io" type="read" args="_file_path:=$(arg root_dir)/$(arg scan_id)/labels.instances.annotated.v2.ply _topic:=/meshes _frame:=/map _rate:=1.0 "/>
+
+<!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 map camera 400" /> -->
+
+</launch>
+
