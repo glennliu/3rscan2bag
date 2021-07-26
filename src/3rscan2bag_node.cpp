@@ -18,9 +18,10 @@
 #include <rio_lib/rio.h>
 
 using namespace std;
-string root_dir,scan_id,scan_dir;
-string rgb_topic, depth_topic, pose_topic, bbox_topic, path_topic;
+string root_dir,scan_id,scan_dir, output_name;
+string rgb_topic, depth_topic, pose_topic, bbox_topic, path_topic, rawdepth_topic;
 string frame_name;
+bool output_raw_data;
 int N_MAX;
 double t_gap;
 
@@ -48,7 +49,10 @@ bool write_rgb_img(const int &frame_id)
       return false;
     }
 
-    cv::rotate(rgb_img,rgb_img,cv::ROTATE_90_CLOCKWISE);
+    if(!output_raw_data){
+      cv::rotate(rgb_img,rgb_img,cv::ROTATE_90_CLOCKWISE);
+    }
+
     img_cv_bridge.header.seq = frame_id;
     img_cv_bridge.header.stamp.fromSec(timestamp_sec);
     img_cv_bridge.image = rgb_img;
@@ -64,6 +68,39 @@ bool write_rgb_img(const int &frame_id)
     return true;
 }
 
+bool write_raw_depth_img(const int &frame_id)
+{
+    sensor_msgs::Image img_msg;
+    cv_bridge::CvImage img_cv_bridge;
+    stringstream depth_dir;
+    double timestamp_sec = (frame_id+1) * t_gap; 
+
+    depth_dir<<scan_dir<<"sequence/frame-"<< std::setfill('0') << std::setw(6)<< frame_id
+      <<".depth.pgm";
+    cv::Mat depth_img = cv::imread(depth_dir.str(),-1);
+
+    if(!output_raw_data){
+      cv::rotate(depth_img,depth_img,cv::ROTATE_90_COUNTERCLOCKWISE);
+    }
+
+    if(depth_img.empty()){
+      ROS_WARN("Depth not found");
+      return false;
+    }
+
+    img_cv_bridge.header.seq = frame_id;
+    img_cv_bridge.header.stamp.fromSec(timestamp_sec);
+    img_cv_bridge.image = depth_img;
+    img_cv_bridge.encoding = sensor_msgs::image_encodings::MONO16;
+    img_cv_bridge.header.frame_id = frame_name;
+    
+
+    img_cv_bridge.toImageMsg(img_msg);
+    bag.write(rawdepth_topic,img_msg.header.stamp,img_msg);
+    
+    return true;
+}
+
 bool write_depth_img(const int &frame_id)
 {
     sensor_msgs::Image img_msg;
@@ -74,6 +111,10 @@ bool write_depth_img(const int &frame_id)
     depth_dir<<scan_dir<<"sequence/frame-"<< std::setfill('0') << std::setw(6)<< frame_id
       <<".rendered.depth.png";
     cv::Mat depth_img = cv::imread(depth_dir.str(),cv::IMREAD_GRAYSCALE);
+
+    if(output_raw_data){
+      cv::rotate(depth_img,depth_img,cv::ROTATE_90_COUNTERCLOCKWISE);
+    }
 
     if(depth_img.empty()){
       ROS_WARN("Depth not found");
@@ -105,9 +146,15 @@ bool write_pose_msg(const int &frame_id)
   nav_msgs::Path path_msg;
 
   Eigen::Matrix<double,3,3> rot;
-  rot = Eigen::AngleAxisd(0,Eigen::Vector3d::UnitZ())
-    * Eigen::AngleAxisd(0,Eigen::Vector3d::UnitX())
-    * Eigen::AngleAxisd(-M_PI_2,Eigen::Vector3d::UnitY());
+  if(output_raw_data){
+    rot.setIdentity();
+  }
+  else {
+    rot = Eigen::AngleAxisd(0,Eigen::Vector3d::UnitZ())
+      * Eigen::AngleAxisd(0,Eigen::Vector3d::UnitX())
+      * Eigen::AngleAxisd(-M_PI_2,Eigen::Vector3d::UnitY());
+  }
+
 
   double timestamp_sec = (frame_id+1) * t_gap; 
   pose_dir<<scan_dir<<"sequence/frame-"<< std::setfill('0') << std::setw(6)<< frame_id
@@ -127,6 +174,7 @@ bool write_pose_msg(const int &frame_id)
       atof(T_str[3].c_str());
     j++;
   }
+
   T_.topLeftCorner(3,3) = T_.topLeftCorner(3,3) * rot;
   // std::cout<<"Pose: \n"<<T_<<"\n";
 
@@ -197,14 +245,15 @@ bool write_bbox_msg(const int &frame_id)
       if(!saveSemanticType(query_type)){
         continue;
       }
-      std::cout<<"Save obj id:"<<semantic_object_id<<","
-        <<"global type id:"<<query_type<<"\n";
+      // std::cout<<"Save obj id:"<<semantic_object_id<<","
+      //   <<"global type id:"<<query_type<<"\n";
 
       bbox_msg.position.x = atof(u0.c_str());
       bbox_msg.position.y = atof(v0.c_str());
       bbox_msg.position.z = atof(id.c_str());
       bbox_msg.orientation.x = atof(u1.c_str());
       bbox_msg.orientation.y = atof(v1.c_str());
+      bbox_msg.orientation.z = query_type;
 
       bboxs_array.poses.emplace_back(bbox_msg);
       // std::cout<<buf.str()<<"\n";
@@ -228,7 +277,7 @@ void process_frames()
   for(int i=0;i<N_MAX;i++)
   {
     if(!write_rgb_img(i) || !write_depth_img(i)|| !write_pose_msg(i)
-      || !write_bbox_msg(i)){
+      || !write_bbox_msg(i) || !write_raw_depth_img(i)){
       ROS_WARN("Frame %d read empty!",i);
       return;
     }
@@ -248,17 +297,24 @@ int main(int argc, char** argv)
   pose_topic = "camera_pose";
   bbox_topic = "bbox";
   path_topic = "path";
+  rawdepth_topic = "raw_depth";
   n.getParam("root_dir",root_dir);
   n.getParam("scan_id",scan_id);
   n.getParam("max_image_num",N_MAX);
   n.getParam("frame_name",frame_name);
   n.getParam("t_gap",t_gap);
+  // n.getParam("output_name",output_name);
+  n.getParam("output_raw_data",output_raw_data);
+  if(output_raw_data){
+    output_name = "rawdata";
+  }
+  else output_name = "rotatedata";
 
   stringstream scan_dir_stream;
   scan_dir_stream<<root_dir<<"/"<<scan_id<<"/";
   scan_dir = scan_dir_stream.str();
   ROS_WARN("Process sequence data:%s",scan_dir.c_str());
-  std::cout<<"Scan dir: "<< scan_dir<<"\n";
+  // std::cout<<"Scan dir: "<< scan_dir<<"\n";
   std::cout<<"frame name:"<<frame_name<<"\n";
 
   //
@@ -270,12 +326,12 @@ int main(int argc, char** argv)
 
   //
   stringstream output_bag_dir;
-  output_bag_dir <<scan_dir<<"/data.bag";
+  output_bag_dir <<scan_dir<<output_name<<".bag";
   bag.open(output_bag_dir.str(),rosbag::bagmode::Write);
 
   process_frames();
 
-  ROS_WARN("Rosbag created!");
+  ROS_WARN("Rosbag created at: %s!",output_bag_dir.str().c_str());
 
 
   ros::spin();

@@ -26,7 +26,17 @@ std::map<int,std::string> valid_semantic_types{
     make_pair(369,"roll"),
     make_pair(456,"table lamp"),
     make_pair(103,"clutter"),
-    make_pair(360,"radiator")
+    make_pair(360,"radiator"),
+    make_pair(35,"beanbag"),
+    make_pair(131,"cushion"),
+    make_pair(489,"tv"),
+    make_pair(267,"light"),
+    make_pair(228,"heater"),
+    make_pair(525,"windowsill"),
+    make_pair(482,"trashCan"),
+    make_pair(342,"plant"),
+    make_pair(516,"waterCan"),
+    make_pair(388,"shades")
 };
 
 

@@ -1,8 +1,8 @@
 <launch>
 <!-- <arg name="scan_id" value="4acaebcc-6c10-2a2a-858b-29c7e4fb410d"/> -->
-<!-- <arg name="scan_id" value="754e884c-ea24-2175-8b34-cead19d4198d"/> -->
+<arg name="scan_id" value="754e884c-ea24-2175-8b34-cead19d4198d"/>
 <!-- <arg name="scan_id" value="8eabc401-5af7-2f32-85fe-77e22d8d97f8"/> -->
-<arg name="scan_id" value="18d4d926-7eb5-280e-87df-199e66f2babd"/>
+<!-- <arg name="scan_id" value="18d4d926-7eb5-280e-87df-199e66f2babd"/> -->
 
 <arg name="root_dir" value="/home/lch/catkin_ws2/src/dataset_tool/3RScan/data/3RScan"/>
 
@@ -10,9 +10,12 @@
 <node pkg="3rscan2bag" type="3rscan2bag_node" name="coverter" output="screen">
     <param name="root_dir" type="string" value="$(arg root_dir)"/>
     <param name="scan_id" type="string" value="$(arg scan_id)"/>
+    <!-- <param name="output_name" type="string" value="rawdata"/> -->
     <param name="frame_name" type="string" value="map"/>
     <param name="max_image_num" type="int" value="9999"/>
     <param name="t_gap" type="double" value="0.2"/>
+    <!-- Raw depth is not output is set to false -->
+    <param name="output_raw_data" type="bool" value="true"/>
 </node>
 
 </launch>
