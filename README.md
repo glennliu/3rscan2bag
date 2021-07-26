@@ -1,4 +1,4 @@
-# The toolbox for 3RScan dataset ([link](https://github.com/WaldJohannaU/3RScan))
+# The toolbox for [3RScan dataset](https://github.com/WaldJohannaU/3RScan)
 This is a simple data processing toolbox of 3RScan. It converts the 3RSCan dataset into rosbag format.
 
 ## Input data format
